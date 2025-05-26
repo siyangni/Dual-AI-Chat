@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, MessageSender, MessagePurpose } from './types';
 import { generateResponse } from './services/geminiService';
@@ -307,8 +306,8 @@ const App: React.FC = () => {
 
       addMessage(`${MessageSender.Cognito} 正在为 ${MessageSender.Muse} 准备第一个观点 (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
       
-      // Fix: Define cognitoPrompt
-      const cognitoInitialTaskInstruction = `用户的查询 (中文) 是: "${userInput}". ${imageInstructionForAI} 请针对此查询提供您的初步想法或分析，以便 ${MessageSender.Muse} (创意型AI) 可以回应并与您开始讨论。用中文回答。`;
+      // Language-agnostic prompts
+      const cognitoInitialTaskInstruction = `User query: "${userInput}". ${imageInstructionForAI} Please provide your initial thoughts or analysis on this query, so that ${MessageSender.Muse} (the creative AI) can respond and start a discussion with you. Please respond in the same language as the user's query.`;
       const cognitoPrompt = `${cognitoInitialTaskInstruction}\n${commonPromptInstructions}`;
       
       let cognitoResultRaw = await generateResponse(cognitoPrompt, selectedModelApiName, COGNITO_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
@@ -341,9 +340,9 @@ const App: React.FC = () => {
         let dynamicMusePromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', currentNotepadForMusePrompt) + discussionModeInstruction;
         
         addMessage(`${MessageSender.Muse} 正在回应 ${MessageSender.Cognito} (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
-        let musePrompt = `${MUSE_SYSTEM_PROMPT_HEADER} 用户的查询 (中文) 是: "${userInput}". ${imageInstructionForAI} 当前讨论 (均为中文):\n${discussionLog.join("\n")}\n${MessageSender.Cognito} (逻辑AI) 刚刚说 (中文): "${lastTurnTextForLog}". 请回复 ${MessageSender.Cognito}。继续讨论。保持您的回复简洁并使用中文。\n${dynamicMusePromptInstructions}`;
+        let musePrompt = `${MUSE_SYSTEM_PROMPT_HEADER} User query: "${userInput}". ${imageInstructionForAI} Current discussion:\n${discussionLog.join("\n")}\n${MessageSender.Cognito} (logical AI) just said: "${lastTurnTextForLog}". Please respond to ${MessageSender.Cognito}. Continue the discussion. Keep your response concise and use the same language as the ongoing conversation.\n${dynamicMusePromptInstructions}`;
         if (discussionMode === DiscussionMode.AiDriven && previousAISignaledStop) { 
-            musePrompt += `\n${MessageSender.Cognito} 已包含 ${DISCUSSION_COMPLETE_TAG} 建议结束讨论。如果您同意，请在您的回复中也包含 ${DISCUSSION_COMPLETE_TAG}。否则，请继续讨论。`;
+            musePrompt += `\n${MessageSender.Cognito} has included ${DISCUSSION_COMPLETE_TAG} suggesting to end the discussion. If you agree, please include ${DISCUSSION_COMPLETE_TAG} in your response. Otherwise, continue the discussion.`;
         }
         
         const museResultRaw = await generateResponse(musePrompt, selectedModelApiName, MUSE_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
@@ -383,9 +382,9 @@ const App: React.FC = () => {
         let currentNotepadForCognitoPrompt = notepadContent;
         let dynamicCognitoPromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', currentNotepadForCognitoPrompt) + discussionModeInstruction;
         addMessage(`${MessageSender.Cognito} 正在回应 ${MessageSender.Muse} (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
-        let cognitoReplyPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER} 用户的查询 (中文) 是: "${userInput}". ${imageInstructionForAI} 当前讨论 (均为中文):\n${discussionLog.join("\n")}\n${MessageSender.Muse} (创意AI) 刚刚说 (中文): "${lastTurnTextForLog}". 请回复 ${MessageSender.Muse}。继续讨论。保持您的回复简洁并使用中文。\n${dynamicCognitoPromptInstructions}`;
+        let cognitoReplyPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER} User query: "${userInput}". ${imageInstructionForAI} Current discussion:\n${discussionLog.join("\n")}\n${MessageSender.Muse} (creative AI) just said: "${lastTurnTextForLog}". Please respond to ${MessageSender.Muse}. Continue the discussion. Keep your response concise and use the same language as the ongoing conversation.\n${dynamicCognitoPromptInstructions}`;
         if (discussionMode === DiscussionMode.AiDriven && previousAISignaledStop) { 
-            cognitoReplyPrompt += `\n${MessageSender.Muse} 已包含 ${DISCUSSION_COMPLETE_TAG} 建议结束讨论。如果您同意，请在您的回复中也包含 ${DISCUSSION_COMPLETE_TAG}。否则，请继续讨论。`;
+            cognitoReplyPrompt += `\n${MessageSender.Muse} has included ${DISCUSSION_COMPLETE_TAG} suggesting to end the discussion. If you agree, please include ${DISCUSSION_COMPLETE_TAG} in your response. Otherwise, continue the discussion.`;
         }
 
         const cognitoReplyResultRaw = await generateResponse(cognitoReplyPrompt, selectedModelApiName, COGNITO_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
@@ -426,7 +425,7 @@ const App: React.FC = () => {
       const finalNotepadForPrompt = notepadContent;
       const finalPromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', finalNotepadForPrompt) + (discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ""); 
       addMessage(`${MessageSender.Cognito} 正在综合讨论内容，准备最终答案 (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
-      const finalAnswerPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER} 用户最初的查询 (中文) 是: "${userInput}". ${imageInstructionForAI} 您 (${MessageSender.Cognito}) 和 ${MessageSender.Muse} 进行了以下讨论 (均为中文):\n${discussionLog.join("\n")}\n基于整个交流过程和共享记事本的最终状态，综合所有关键点，并为用户制定一个全面、有用的最终答案。直接回复用户，而不是 ${MessageSender.Muse}。确保答案结构良好，易于理解，并使用中文。如果相关，您可以在答案中引用记事本。如果认为有必要，您也可以使用标准的记事本更新说明最后一次更新记事本。\n${finalPromptInstructions}`;
+      const finalAnswerPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER} Original user query: "${userInput}". ${imageInstructionForAI} You (${MessageSender.Cognito}) and ${MessageSender.Muse} had the following discussion:\n${discussionLog.join("\n")}\nBased on the entire conversation and the final state of the shared notepad, synthesize all key points and create a comprehensive, useful final answer for the user. Reply directly to the user, not to ${MessageSender.Muse}. Ensure the answer is well-structured and easy to understand. Use the same language as the ongoing conversation. You may reference the notepad if relevant. If necessary, you can also use the standard notepad update instructions to make a final update to the notepad.\n${finalPromptInstructions}`;
       const finalAnswerResultRaw = await generateResponse(finalAnswerPrompt, selectedModelApiName, COGNITO_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
       
       if (cancelRequestRef.current) { console.log("Cancelled after final answer generation, before display."); return; }

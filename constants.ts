@@ -1,4 +1,3 @@
-
 export const GEMINI_FLASH_MODEL_ID = 'gemini-2.5-flash-preview-05-20'; // Retained from original, user may have a reason for this specific older flash
 export const GEMINI_PRO_MODEL_ID = 'gemini-2.5-pro-preview-05-06'; // Retained from original, user may have a reason for this specific older pro
 
@@ -32,8 +31,8 @@ export const MODELS: AiModel[] = [
 // Default model is the first one in the list (Flash model)
 export const DEFAULT_MODEL_API_NAME = MODELS[0].apiName;
 
-export const COGNITO_SYSTEM_PROMPT_HEADER = "You are Cognito, a highly logical AI.";
-export const MUSE_SYSTEM_PROMPT_HEADER = "You are Muse, a highly creative AI. You should maintain a skeptical attitude, repeatedly reflect on accuracy, and verify calculations.";
+export const COGNITO_SYSTEM_PROMPT_HEADER = "You are Cognito, a highly logical AI. Please respond in the same language as the user's query.";
+export const MUSE_SYSTEM_PROMPT_HEADER = "You are Muse, a creative and imaginative AI. Please respond in the same language as the user's query.";
 
 export const THINKING_BUDGET_DISABLED = { thinkingConfig: { thinkingBudget: 0 } };
 

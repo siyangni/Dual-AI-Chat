@@ -1,4 +1,3 @@
-
 export enum MessageSender {
   User = '用户',
   Cognito = 'Cognito', // Logical AI
@@ -26,4 +25,15 @@ export interface ChatMessage {
     name: string;
     type: string;
   };
+}
+
+export enum ApiProvider {
+  Gemini = 'gemini',
+  OpenAICompatible = 'openai-compatible'
+}
+
+export interface ApiConfig {
+  provider: ApiProvider;
+  apiKey: string;
+  baseUrl?: string; // Required for OpenAI-compatible providers
 }

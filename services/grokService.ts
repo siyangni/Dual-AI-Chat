@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const GROK_API_BASE_URL = 'https://api.grok.x.ai/v1beta';
+const GROK_API_BASE_URL = 'https://api.grok.x.ai/v1';
 
 interface GrokApiGenerationContent {
   parts: { text: string }[];

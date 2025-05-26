@@ -1,6 +1,12 @@
 export const GEMINI_FLASH_MODEL_ID = 'gemini-2.5-flash-preview-05-20'; // Retained from original, user may have a reason for this specific older flash
 export const GEMINI_PRO_MODEL_ID = 'gemini-2.5-pro-preview-05-06'; // Retained from original, user may have a reason for this specific older pro
 
+// Grok model IDs
+export const GROK_3 = 'grok-3';
+export const GROK_3_FAST = 'grok-3-fast';
+export const GROK_3_MINI = 'grok-3-mini';
+export const GROK_3_MINI_FAST = 'grok-3-mini-fast';
+
 // The problem description specifies 'gemini-2.5-flash-preview-04-17' and 'imagen-3.0-generate-002'
 // However, the existing code uses different models. I will stick to the models used in the existing code
 // to minimize changes, assuming the user has a specific reason for these versions.
@@ -24,6 +30,30 @@ export const MODELS: AiModel[] = [
     id: 'pro-05-06',
     name: 'Gemini 2.5 Pro (05-06)',
     apiName: GEMINI_PRO_MODEL_ID,
+    supportsThinkingBudget: false,
+  },
+  {
+    id: 'grok-3',
+    name: 'Grok 3',
+    apiName: GROK_3,
+    supportsThinkingBudget: false,
+  },
+  {
+    id: 'grok-3-fast',
+    name: 'Grok 3 Fast',
+    apiName: GROK_3_FAST,
+    supportsThinkingBudget: false,
+  },
+  {
+    id: 'grok-3-mini',
+    name: 'Grok 3 Mini',
+    apiName: GROK_3_MINI,
+    supportsThinkingBudget: false,
+  },
+  {
+    id: 'grok-3-mini-fast',
+    name: 'Grok 3 Mini Fast',
+    apiName: GROK_3_MINI_FAST,
     supportsThinkingBudget: false,
   },
 ];

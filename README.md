@@ -1,14 +1,36 @@
-# Run and deploy your AI Studio app
+# Dual AI Chat
 
-This contains everything you need to run your app locally.
+A chat application that enables conversation between two AI models - Cognito (logical) and Muse (creative).
 
-## Run Locally
+## Environment Setup
 
-**Prerequisites:**  Node.js
+Create a `.env.local` file in the root directory with the following variables:
 
+```env
+# Gemini API Key
+API_KEY=your_gemini_api_key_here
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# Grok API Key
+GROK_API_KEY=your_grok_api_key_here
+```
+
+## Available Models
+
+The application supports the following models:
+
+### Gemini Models
+- Gemini 2.5 Flash (05-20)
+- Gemini 2.5 Pro (05-06)
+
+### Grok Models
+- Grok 3 Beta
+- Grok 3 Fast Beta
+- Grok 3 Mini Beta
+- Grok 3 Mini Fast Beta
+
+## Development
+
+```bash
+npm install
+npm run dev
+```

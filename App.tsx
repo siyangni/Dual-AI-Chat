@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, MessageSender, MessagePurpose } from './types';
 import { generateResponse } from './services/geminiService';
+import { GrokService } from './services/grokService';
 import ChatInput from './components/ChatInput';
 import MessageBubble from './components/MessageBubble';
 import Notepad from './components/Notepad';
@@ -112,6 +113,7 @@ const App: React.FC = () => {
   const [discussionMode, setDiscussionMode] = useState<DiscussionMode>(DiscussionMode.FixedTurns);
   const [manualFixedTurns, setManualFixedTurns] = useState<number>(DEFAULT_MANUAL_FIXED_TURNS);
 
+  const [grokService] = useState<GrokService>(() => new GrokService(process.env.GROK_API_KEY || ''));
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const currentQueryStartTimeRef = useRef<number | null>(null);
@@ -119,6 +121,7 @@ const App: React.FC = () => {
 
   const currentModelDetails = MODELS.find(m => m.apiName === selectedModelApiName) || MODELS[0];
   const modelSupportsThinkingBudget = currentModelDetails.supportsThinkingBudget;
+  const isGrokModel = selectedModelApiName.includes('grok');
 
   const addMessage = (
     text: string,
@@ -156,14 +159,14 @@ const App: React.FC = () => {
     setMessages([]);
     setNotepadContent(INITIAL_NOTEPAD_CONTENT);
     setLastNotepadUpdateBy(null);
-    // discussionMode and manualFixedTurns retain their current values.
-    // setDiscussionMode(DiscussionMode.FixedTurns); 
-    // setManualFixedTurns(DEFAULT_MANUAL_FIXED_TURNS);
 
-    if (!process.env.API_KEY) {
+    const missingGrokKey = isGrokModel && !process.env.GROK_API_KEY;
+    const missingGeminiKey = !isGrokModel && !process.env.API_KEY;
+
+    if (missingGrokKey || missingGeminiKey) {
       setIsApiKeyMissing(true);
       addMessage(
-        "严重警告：API_KEY 未配置。请确保设置 API_KEY 环境变量，以便应用程序正常运行。",
+        `严重警告：${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} 未配置。请确保设置相应的环境变量，以便应用程序正常运行。`,
         MessageSender.System,
         MessagePurpose.SystemNotification
       );
@@ -194,6 +197,21 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentModelDetails.name, isApiKeyMissing, discussionMode, manualFixedTurns]);
 
+  // Add effect to check API key when model changes
+  useEffect(() => {
+    const missingGrokKey = isGrokModel && !process.env.GROK_API_KEY;
+    const missingGeminiKey = !isGrokModel && !process.env.API_KEY;
+    
+    setIsApiKeyMissing(missingGrokKey || missingGeminiKey);
+    
+    if (missingGrokKey || missingGeminiKey) {
+      addMessage(
+        `警告：${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} 未配置。请确保设置相应的环境变量，以便应用程序正常运行。`,
+        MessageSender.System,
+        MessagePurpose.SystemNotification
+      );
+    }
+  }, [selectedModelApiName]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -260,215 +278,221 @@ const App: React.FC = () => {
 
 
   const handleSendMessage = async (userInput: string, imageFile?: File | null) => {
-    if (isApiKeyMissing || isLoading) return;
-    if (!userInput.trim() && !imageFile) return;
-
-    cancelRequestRef.current = false; // Reset cancellation flag for new request
+    if (isLoading || !userInput.trim()) return;
     setIsLoading(true);
-    currentQueryStartTimeRef.current = performance.now();
-    setCurrentTotalProcessingTimeMs(0);
-
-    let userImageForDisplay: ChatMessage['image'] | undefined = undefined;
-    if (imageFile) {
-      const dataUrl = URL.createObjectURL(imageFile); // Will be revoked in `finally`
-      userImageForDisplay = { dataUrl, name: imageFile.name, type: imageFile.type };
-    }
-
-    addMessage(userInput, MessageSender.User, MessagePurpose.UserInput, undefined, userImageForDisplay);
-    
-    const discussionLog: string[] = [];
-    let lastTurnTextForLog = "";
-    const shouldApplyBudgetZeroForApi = modelSupportsThinkingBudget && !isThinkingBudgetEnabled;
-
-    let imageApiPart: { inlineData: { mimeType: string; data: string } } | undefined = undefined;
-    if (imageFile) {
-      try {
-        const base64Data = await fileToBase64(imageFile);
-        imageApiPart = {
-          inlineData: {
-            mimeType: imageFile.type,
-            data: base64Data,
-          },
-        };
-      } catch (error) {
-        console.error("Error converting file to base64:", error);
-        addMessage("图片处理失败，请重试。", MessageSender.System, MessagePurpose.SystemNotification);
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    const imageInstructionForAI = imageApiPart ? "用户还提供了一张图片。请在您的分析和回复中同时考虑此图片和文本查询。" : "";
-    const discussionModeInstruction = discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : "";
+    cancelRequestRef.current = false;
+    currentQueryStartTimeRef.current = Date.now();
 
     try {
-      const commonPromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent) + discussionModeInstruction;
+      // Add user's message
+      addMessage(userInput, MessageSender.User, MessagePurpose.UserInput, undefined, 
+        imageFile ? { 
+          dataUrl: await fileToBase64(imageFile),
+          name: imageFile.name,
+          type: imageFile.type
+        } : undefined
+      );
 
-      addMessage(`${MessageSender.Cognito} 正在为 ${MessageSender.Muse} 准备第一个观点 (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
+      // Prepare the discussion between Cognito and Muse
+      const maxTurns = discussionMode === DiscussionMode.FixedTurns 
+        ? manualFixedTurns 
+        : MAX_AI_DRIVEN_DISCUSSION_TURNS_PER_MODEL;
       
-      // Language-agnostic prompts
-      const cognitoInitialTaskInstruction = `User query: "${userInput}". ${imageInstructionForAI} Please provide your initial thoughts or analysis on this query, so that ${MessageSender.Muse} (the creative AI) can respond and start a discussion with you. Please respond in the same language as the user's query.`;
-      const cognitoPrompt = `${cognitoInitialTaskInstruction}\n${commonPromptInstructions}`;
-      
-      let cognitoResultRaw = await generateResponse(cognitoPrompt, selectedModelApiName, COGNITO_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
-      
-      if (cancelRequestRef.current) { console.log("Cancelled after Cognito initial."); return; }
+      let currentTurn = 0;
+      let discussionComplete = false;
 
-      if (cognitoResultRaw.error) {
-        if (cognitoResultRaw.error.includes("API key not valid")) setIsApiKeyMissing(true);
-        throw new Error(cognitoResultRaw.text);
-      }
-      let cognitoParsedResponse = parseAIResponse(cognitoResultRaw.text);
-      if (cognitoParsedResponse.newNotepadContent !== null) {
-        setNotepadContent(cognitoParsedResponse.newNotepadContent);
-        setLastNotepadUpdateBy(MessageSender.Cognito);
-      }
-      addMessage(cognitoParsedResponse.spokenText, MessageSender.Cognito, MessagePurpose.CognitoToMuse, cognitoResultRaw.durationMs);
-      lastTurnTextForLog = cognitoParsedResponse.spokenText;
-      discussionLog.push(`${MessageSender.Cognito}: ${lastTurnTextForLog}`);
+      while (currentTurn < maxTurns && !discussionComplete && !cancelRequestRef.current) {
+        // Cognito's turn
+        const cognitoPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER}
+${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
+${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
 
-      let previousAISignaledStop = discussionMode === DiscussionMode.AiDriven ? cognitoParsedResponse.discussionShouldEnd || false : false;
-      if (previousAISignaledStop) {
-         addMessage(`${MessageSender.Cognito} 已建议结束讨论。等待 ${MessageSender.Muse} 的回应。`, MessageSender.System, MessagePurpose.SystemNotification);
-      }
-      
-      const maxTurnsForLoop = discussionMode === DiscussionMode.AiDriven ? MAX_AI_DRIVEN_DISCUSSION_TURNS_PER_MODEL : manualFixedTurns;
-
-      for (let turn = 0; turn < maxTurnsForLoop; turn++) {
-        if (cancelRequestRef.current) { console.log("Cancelled during discussion loop (start of turn)."); return; }
-        let currentNotepadForMusePrompt = notepadContent; 
-        let dynamicMusePromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', currentNotepadForMusePrompt) + discussionModeInstruction;
-        
-        addMessage(`${MessageSender.Muse} 正在回应 ${MessageSender.Cognito} (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
-        let musePrompt = `${MUSE_SYSTEM_PROMPT_HEADER} User query: "${userInput}". ${imageInstructionForAI} Current discussion:\n${discussionLog.join("\n")}\n${MessageSender.Cognito} (logical AI) just said: "${lastTurnTextForLog}". Please respond to ${MessageSender.Cognito}. Continue the discussion. Keep your response concise and use the same language as the ongoing conversation.\n${dynamicMusePromptInstructions}`;
-        if (discussionMode === DiscussionMode.AiDriven && previousAISignaledStop) { 
-            musePrompt += `\n${MessageSender.Cognito} has included ${DISCUSSION_COMPLETE_TAG} suggesting to end the discussion. If you agree, please include ${DISCUSSION_COMPLETE_TAG} in your response. Otherwise, continue the discussion.`;
+        let cognitoResponse;
+        if (isGrokModel) {
+          cognitoResponse = await grokService.generateResponse(
+            [...messages, { id: 'system', text: cognitoPrompt, sender: MessageSender.System, purpose: MessagePurpose.SystemNotification, timestamp: new Date() }],
+            selectedModelApiName
+          );
+          if (cognitoResponse.error) {
+            if (cognitoResponse.error.includes("API key not valid")) {
+              setIsApiKeyMissing(true);
+              throw new Error(cognitoResponse.error);
+            }
+            throw new Error(cognitoResponse.text);
+          }
+        } else {
+          cognitoResponse = await generateResponse(cognitoPrompt, selectedModelApiName);
+          if (cognitoResponse.error) {
+            if (cognitoResponse.error.includes("API key not valid")) setIsApiKeyMissing(true);
+            throw new Error(cognitoResponse.text);
+          }
         }
-        
-        const museResultRaw = await generateResponse(musePrompt, selectedModelApiName, MUSE_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
-        if (cancelRequestRef.current) { console.log("Cancelled after Muse response."); return; }
 
-        if (museResultRaw.error) {
-            if (museResultRaw.error.includes("API key not valid")) setIsApiKeyMissing(true);
-            throw new Error(museResultRaw.text);
+        let cognitoParsedResponse = parseAIResponse(cognitoResponse.text);
+        if (cognitoParsedResponse.newNotepadContent !== null) {
+          setNotepadContent(cognitoParsedResponse.newNotepadContent);
+          setLastNotepadUpdateBy(MessageSender.Cognito);
         }
-        let museParsedResponse = parseAIResponse(museResultRaw.text);
+        addMessage(cognitoParsedResponse.spokenText, MessageSender.Cognito, MessagePurpose.CognitoToMuse, cognitoResponse.durationMs);
+
+        if (discussionMode === DiscussionMode.AiDriven) {
+          if (cognitoParsedResponse.discussionShouldEnd) {
+            discussionComplete = true;
+            addMessage(`双方AI (${MessageSender.Cognito} 和 ${MessageSender.Muse}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
+          }
+        }
+
+        if (discussionMode === DiscussionMode.FixedTurns && currentTurn === maxTurns - 1) {
+          discussionComplete = true;
+        }
+
+        if (cancelRequestRef.current) { console.log("Cancelled during discussion loop (before Muse reply)."); return; }
+
+        // Muse's turn
+        let musePrompt = `${MUSE_SYSTEM_PROMPT_HEADER}
+${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
+${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
+
+        let museResponse;
+        if (isGrokModel) {
+          museResponse = await grokService.generateResponse(
+            [...messages, { id: 'system', text: musePrompt, sender: MessageSender.System, purpose: MessagePurpose.SystemNotification, timestamp: new Date() }],
+            selectedModelApiName
+          );
+          if (museResponse.error) {
+            if (museResponse.error.includes("API key not valid")) {
+              setIsApiKeyMissing(true);
+              throw new Error(museResponse.error);
+            }
+            throw new Error(museResponse.text);
+          }
+        } else {
+          museResponse = await generateResponse(musePrompt, selectedModelApiName);
+          if (museResponse.error) {
+            if (museResponse.error.includes("API key not valid")) setIsApiKeyMissing(true);
+            throw new Error(museResponse.text);
+          }
+        }
+
+        let museParsedResponse = parseAIResponse(museResponse.text);
         if (museParsedResponse.newNotepadContent !== null) {
           setNotepadContent(museParsedResponse.newNotepadContent);
           setLastNotepadUpdateBy(MessageSender.Muse);
         }
-        addMessage(museParsedResponse.spokenText, MessageSender.Muse, MessagePurpose.MuseToCognito, museResultRaw.durationMs);
-        lastTurnTextForLog = museParsedResponse.spokenText;
-        discussionLog.push(`${MessageSender.Muse}: ${lastTurnTextForLog}`);
+        addMessage(museParsedResponse.spokenText, MessageSender.Muse, MessagePurpose.MuseToCognito, museResponse.durationMs);
 
         if (discussionMode === DiscussionMode.AiDriven) {
-            if (museParsedResponse.discussionShouldEnd) {
-                if (previousAISignaledStop) { 
-                    addMessage(`双方AI (${MessageSender.Cognito} 和 ${MessageSender.Muse}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
-                    break; 
-                }
-                previousAISignaledStop = true; 
-                addMessage(`${MessageSender.Muse} 已建议结束讨论。等待 ${MessageSender.Cognito} 的回应。`, MessageSender.System, MessagePurpose.SystemNotification);
-            } else {
-                previousAISignaledStop = false; 
-            }
+          if (museParsedResponse.discussionShouldEnd) {
+            discussionComplete = true;
+            addMessage(`双方AI (${MessageSender.Muse} 和 ${MessageSender.Cognito}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
+          }
         }
 
-        if (discussionMode === DiscussionMode.FixedTurns && turn === maxTurnsForLoop - 1) {
-            break;
+        if (discussionMode === DiscussionMode.FixedTurns && currentTurn === maxTurns - 1) {
+          discussionComplete = true;
         }
+
         if (cancelRequestRef.current) { console.log("Cancelled during discussion loop (before Cognito reply)."); return; }
 
-        let currentNotepadForCognitoPrompt = notepadContent;
-        let dynamicCognitoPromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', currentNotepadForCognitoPrompt) + discussionModeInstruction;
-        addMessage(`${MessageSender.Cognito} 正在回应 ${MessageSender.Muse} (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
-        let cognitoReplyPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER} User query: "${userInput}". ${imageInstructionForAI} Current discussion:\n${discussionLog.join("\n")}\n${MessageSender.Muse} (creative AI) just said: "${lastTurnTextForLog}". Please respond to ${MessageSender.Muse}. Continue the discussion. Keep your response concise and use the same language as the ongoing conversation.\n${dynamicCognitoPromptInstructions}`;
-        if (discussionMode === DiscussionMode.AiDriven && previousAISignaledStop) { 
-            cognitoReplyPrompt += `\n${MessageSender.Muse} has included ${DISCUSSION_COMPLETE_TAG} suggesting to end the discussion. If you agree, please include ${DISCUSSION_COMPLETE_TAG} in your response. Otherwise, continue the discussion.`;
+        // Cognito's reply
+        let cognitoReplyPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER}
+${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
+${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
+
+        let cognitoReplyResponse;
+        if (isGrokModel) {
+          cognitoReplyResponse = await grokService.generateResponse(
+            [...messages, { id: 'system', text: cognitoReplyPrompt, sender: MessageSender.System, purpose: MessagePurpose.SystemNotification, timestamp: new Date() }],
+            selectedModelApiName
+          );
+          if (cognitoReplyResponse.error) {
+            if (cognitoReplyResponse.error.includes("API key not valid")) {
+              setIsApiKeyMissing(true);
+              throw new Error(cognitoReplyResponse.error);
+            }
+            throw new Error(cognitoReplyResponse.text);
+          }
+        } else {
+          cognitoReplyResponse = await generateResponse(cognitoReplyPrompt, selectedModelApiName);
+          if (cognitoReplyResponse.error) {
+            if (cognitoReplyResponse.error.includes("API key not valid")) setIsApiKeyMissing(true);
+            throw new Error(cognitoReplyResponse.text);
+          }
         }
 
-        const cognitoReplyResultRaw = await generateResponse(cognitoReplyPrompt, selectedModelApiName, COGNITO_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
-        if (cancelRequestRef.current) { console.log("Cancelled after Cognito reply."); return; }
-        
-        if (cognitoReplyResultRaw.error) {
-            if (cognitoReplyResultRaw.error.includes("API key not valid")) setIsApiKeyMissing(true);
-            throw new Error(cognitoReplyResultRaw.text);
-        }
-        let cognitoReplyParsedResponse = parseAIResponse(cognitoReplyResultRaw.text);
+        let cognitoReplyParsedResponse = parseAIResponse(cognitoReplyResponse.text);
         if (cognitoReplyParsedResponse.newNotepadContent !== null) {
           setNotepadContent(cognitoReplyParsedResponse.newNotepadContent);
           setLastNotepadUpdateBy(MessageSender.Cognito);
         }
-        addMessage(cognitoReplyParsedResponse.spokenText, MessageSender.Cognito, MessagePurpose.CognitoToMuse, cognitoReplyResultRaw.durationMs);
-        lastTurnTextForLog = cognitoReplyParsedResponse.spokenText;
-        discussionLog.push(`${MessageSender.Cognito}: ${lastTurnTextForLog}`);
+        addMessage(cognitoReplyParsedResponse.spokenText, MessageSender.Cognito, MessagePurpose.CognitoToMuse, cognitoReplyResponse.durationMs);
 
         if (discussionMode === DiscussionMode.AiDriven) {
-            if (cognitoReplyParsedResponse.discussionShouldEnd) {
-                if (previousAISignaledStop) { 
-                     addMessage(`双方AI (${MessageSender.Muse} 和 ${MessageSender.Cognito}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
-                    break; 
-                }
-                previousAISignaledStop = true; 
-                addMessage(`${MessageSender.Cognito} 已建议结束讨论。等待 ${MessageSender.Muse} 的回应。`, MessageSender.System, MessagePurpose.SystemNotification);
+          if (cognitoReplyParsedResponse.discussionShouldEnd) {
+            discussionComplete = true;
+            addMessage(`双方AI (${MessageSender.Muse} 和 ${MessageSender.Cognito}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
+          }
+        }
 
-            } else {
-                previousAISignaledStop = false; 
+        if (discussionMode === DiscussionMode.FixedTurns && currentTurn === maxTurns - 1) {
+          discussionComplete = true;
+        }
+
+        if (cancelRequestRef.current) { console.log("Cancelled during discussion loop (before final answer)."); return; }
+
+        // Final answer
+        let finalPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER}
+${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
+${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
+
+        let finalResponse;
+        if (isGrokModel) {
+          finalResponse = await grokService.generateResponse(
+            [...messages, { id: 'system', text: finalPrompt, sender: MessageSender.System, purpose: MessagePurpose.SystemNotification, timestamp: new Date() }],
+            selectedModelApiName
+          );
+          if (finalResponse.error) {
+            if (finalResponse.error.includes("API key not valid")) {
+              setIsApiKeyMissing(true);
+              throw new Error(finalResponse.error);
             }
+            throw new Error(finalResponse.text);
+          }
+        } else {
+          finalResponse = await generateResponse(finalPrompt, selectedModelApiName);
+          if (finalResponse.error) {
+            if (finalResponse.error.includes("API key not valid")) setIsApiKeyMissing(true);
+            throw new Error(finalResponse.text);
+          }
         }
-         if (turn === maxTurnsForLoop - 1 && discussionMode === DiscussionMode.AiDriven) {
-           addMessage(`已达到AI驱动模式下的最大讨论轮次。 ${MessageSender.Cognito} 将准备最终答复。`, MessageSender.System, MessagePurpose.SystemNotification);
+
+        let { spokenText: finalSpokenText, newNotepadContent: finalNotepadUpdate } = parseAIResponse(finalResponse.text);
+        if (finalNotepadUpdate !== null) {
+          setNotepadContent(finalNotepadUpdate);
+          setLastNotepadUpdateBy(MessageSender.Cognito);
         }
-      }
-      if (cancelRequestRef.current) { console.log("Cancelled before final answer."); return; }
+        addMessage(finalSpokenText, MessageSender.Cognito, MessagePurpose.FinalResponse, finalResponse.durationMs);
 
-      const finalNotepadForPrompt = notepadContent;
-      const finalPromptInstructions = NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', finalNotepadForPrompt) + (discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ""); 
-      addMessage(`${MessageSender.Cognito} 正在综合讨论内容，准备最终答案 (使用 ${currentModelDetails.name})...`, MessageSender.System, MessagePurpose.SystemNotification);
-      const finalAnswerPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER} Original user query: "${userInput}". ${imageInstructionForAI} You (${MessageSender.Cognito}) and ${MessageSender.Muse} had the following discussion:\n${discussionLog.join("\n")}\nBased on the entire conversation and the final state of the shared notepad, synthesize all key points and create a comprehensive, useful final answer for the user. Reply directly to the user, not to ${MessageSender.Muse}. Ensure the answer is well-structured and easy to understand. Use the same language as the ongoing conversation. You may reference the notepad if relevant. If necessary, you can also use the standard notepad update instructions to make a final update to the notepad.\n${finalPromptInstructions}`;
-      const finalAnswerResultRaw = await generateResponse(finalAnswerPrompt, selectedModelApiName, COGNITO_SYSTEM_PROMPT_HEADER, shouldApplyBudgetZeroForApi, imageApiPart);
-      
-      if (cancelRequestRef.current) { console.log("Cancelled after final answer generation, before display."); return; }
+        if (discussionMode === DiscussionMode.AiDriven && currentTurn === maxTurns - 1) {
+          addMessage(`已达到AI驱动模式下的最大讨论轮次。 ${MessageSender.Cognito} 将准备最终答复。`, MessageSender.System, MessagePurpose.SystemNotification);
+        }
 
-      if (finalAnswerResultRaw.error) {
-        if (finalAnswerResultRaw.error.includes("API key not valid")) setIsApiKeyMissing(true);
-        throw new Error(finalAnswerResultRaw.text);
+        currentTurn++;
       }
-      let { spokenText: finalSpokenText, newNotepadContent: finalNotepadUpdate } = parseAIResponse(finalAnswerResultRaw.text);
-      if (finalNotepadUpdate !== null) {
-        setNotepadContent(finalNotepadUpdate);
-        setLastNotepadUpdateBy(MessageSender.Cognito);
-      }
-      addMessage(finalSpokenText, MessageSender.Cognito, MessagePurpose.FinalResponse, finalAnswerResultRaw.durationMs);
-
     } catch (error) {
-      if (cancelRequestRef.current) {
-        console.log("Error caught but request was already cancelled.", error);
-        return; // Don't process error if cancelled
-      }
-      console.error("聊天流程中发生错误:", error);
-      const errorMessageText = error instanceof Error ? error.message : "处理您的请求时发生意外错误。";
-      if (errorMessageText.includes("API_KEY 未配置") || errorMessageText.includes("API密钥无效")) {
-        setIsApiKeyMissing(true);
-         addMessage(
-          `错误：${errorMessageText} 请检查您的API密钥配置。聊天功能可能无法正常工作。`,
-          MessageSender.System,
-          MessagePurpose.SystemNotification,
-          0
-        );
-      } else {
-        addMessage(`错误: ${errorMessageText}`, MessageSender.System, MessagePurpose.SystemNotification, 0);
-      }
+      console.error('Error in chat:', error);
+      addMessage(
+        `错误: ${error instanceof Error ? error.message : '未知错误'}`,
+        MessageSender.System,
+        MessagePurpose.SystemNotification
+      );
     } finally {
-      setIsLoading(false); // This will run even if cancelled, which is fine.
-      if(currentQueryStartTimeRef.current) { // May have been nulled by handleClearChat
-         // Total processing time will be either from the timer or 0 if cleared.
-      }
-      if (userImageForDisplay?.dataUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(userImageForDisplay.dataUrl);
-      }
-      currentQueryStartTimeRef.current = null; // Ensure it's nulled after processing or cancellation.
-      // cancelRequestRef is NOT reset here; it's reset at the start of a new sendMessage.
+      setIsLoading(false);
+      currentQueryStartTimeRef.current = null;
     }
   };
   

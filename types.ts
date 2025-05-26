@@ -29,7 +29,8 @@ export interface ChatMessage {
 
 export enum ApiProvider {
   Gemini = 'gemini',
-  OpenAICompatible = 'openai-compatible'
+  OpenAICompatible = 'openai-compatible',
+  Grok = 'grok'
 }
 
 export interface ApiConfig {

@@ -1,6 +1,7 @@
 import { ApiProvider, ApiConfig } from '../types';
 import * as geminiService from './geminiService';
 import * as openAICompatibleService from './openAICompatibleService';
+import * as grokService from './grokService';
 
 let currentConfig: ApiConfig | null = null;
 
@@ -13,6 +14,8 @@ export const initializeAI = (config: ApiConfig) => {
   } else if (config.provider === ApiProvider.OpenAICompatible) {
     process.env.OPENAI_API_KEY = config.apiKey;
     process.env.OPENAI_API_BASE_URL = config.baseUrl || 'https://api.openai.com';
+  } else if (config.provider === ApiProvider.Grok) {
+    process.env.API_KEY = config.apiKey;
   }
 };
 
@@ -29,6 +32,14 @@ export const generateResponse = async (
 
   if (currentConfig.provider === ApiProvider.Gemini) {
     return geminiService.generateResponse(
+      prompt,
+      modelName,
+      systemInstruction,
+      shouldApplyThinkingBudgetZero,
+      imagePart
+    );
+  } else if (currentConfig.provider === ApiProvider.Grok) {
+    return grokService.generateResponse(
       prompt,
       modelName,
       systemInstruction,

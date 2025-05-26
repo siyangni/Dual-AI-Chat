@@ -32,6 +32,20 @@ export const MODELS: AiModel[] = [
     provider: ApiProvider.Gemini,
   },
   {
+    id: 'grok-3',
+    name: 'Grok 3',
+    apiName: 'grok-3',
+    supportsThinkingBudget: true,
+    provider: ApiProvider.Grok,
+  },
+  {
+    id: 'grok-3-mini',
+    name: 'Grok 3 Mini',
+    apiName: 'grok-3-mini',
+    supportsThinkingBudget: true,
+    provider: ApiProvider.Grok,
+  },
+  {
     id: 'gpt-4',
     name: 'GPT-4',
     apiName: 'gpt-4-turbo-preview',

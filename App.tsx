@@ -50,9 +50,9 @@ const parseAIResponse = (responseText: string): ParsedAIResponse => {
     spokenText = currentText.substring(0, notepadStartIndex).trim(); 
     
     if (newNotepadContent) {
-        notepadActionText = "更新了记事本";
+        notepadActionText = "updated the notepad";
     } else {
-        notepadActionText = "尝试更新记事本但内容为空";
+        notepadActionText = "attempted to update the notepad but the content was empty";
     }
   } else {
     // No valid notepad update found at the end, all text is potentially spoken or contains discussion_complete tag
@@ -65,20 +65,20 @@ const parseAIResponse = (responseText: string): ParsedAIResponse => {
     discussionShouldEnd = true;
     // Remove all occurrences, though ideally there's one at the end
     spokenText = spokenText.replace(new RegExp(DISCUSSION_COMPLETE_TAG.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), "").trim();
-    discussionActionText = "建议结束讨论";
+    discussionActionText = "suggested ending the discussion";
   }
 
   // 3. Determine final spoken text if it's empty after stripping tags
   if (!spokenText.trim()) {
     if (notepadActionText && discussionActionText) {
-      spokenText = `(AI ${notepadActionText}并${discussionActionText})`;
+      spokenText = `(AI ${notepadActionText} and ${discussionActionText})`;
     } else if (notepadActionText) {
       spokenText = `(AI ${notepadActionText})`;
     } else if (discussionActionText) {
       spokenText = `(AI ${discussionActionText})`;
     } else {
       // This case might happen if the response was only tags or whitespace
-      spokenText = "(AI 未提供额外文本回复)"; 
+      spokenText = "(AI provided no additional text response)"; 
     }
   }
   
@@ -148,11 +148,11 @@ const App: React.FC = () => {
   ) => {
     let modeDescription = "";
      if (currentDiscussionMode === DiscussionMode.FixedTurns) {
-      modeDescription = `固定轮次对话 (${currentManualFixedTurns}轮)`;
+      modeDescription = `fixed turns conversation (${currentManualFixedTurns} turns)`;
     } else {
-      modeDescription = "AI驱动对话";
+      modeDescription = "AI driven conversation";
     }
-    return `欢迎使用Dual AI Chat！当前模式: ${modeDescription}。在下方输入您的问题或上传图片。${MessageSender.Cognito} 和 ${MessageSender.Muse} 将进行讨论，并可能使用右侧的共享记事本。然后 ${MessageSender.Cognito} 会给您回复。当前模型: ${modelName}`;
+    return `Welcome to Dual AI Chat! Current mode: ${modeDescription}. Below input your question or upload an image. ${MessageSender.Cognito} and ${MessageSender.Muse} will discuss, and they might use the shared notepad on the right. Then ${MessageSender.Cognito} will reply to you. Current model: ${modelName}`;
   };
   
   const initializeChat = () => {
@@ -166,7 +166,7 @@ const App: React.FC = () => {
     if (missingGrokKey || missingGeminiKey) {
       setIsApiKeyMissing(true);
       addMessage(
-        `严重警告：${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} 未配置。请确保设置相应的环境变量，以便应用程序正常运行。`,
+        `Critical Warning: ${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} is not configured. Please ensure the ${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} environment variable is set for the application to function properly.`,
         MessageSender.System,
         MessagePurpose.SystemNotification
       );
@@ -186,7 +186,7 @@ const App: React.FC = () => {
   }, []); // Runs once on mount
 
    useEffect(() => {
-     const welcomeMessage = messages.find(msg => msg.sender === MessageSender.System && msg.text.startsWith("欢迎使用Dual AI Chat！"));
+     const welcomeMessage = messages.find(msg => msg.sender === MessageSender.System && msg.text.startsWith("Welcome to Dual AI Chat!"));
      if (welcomeMessage && !isApiKeyMissing) {
         setMessages(msgs => msgs.map(msg =>
             msg.id === welcomeMessage.id
@@ -206,7 +206,7 @@ const App: React.FC = () => {
     
     if (missingGrokKey || missingGeminiKey) {
       addMessage(
-        `警告：${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} 未配置。请确保设置相应的环境变量，以便应用程序正常运行。`,
+        `Warning: ${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} is not configured. Please ensure the ${isGrokModel ? 'GROK_API_KEY' : 'API_KEY'} environment variable is set for the application to function properly.`,
         MessageSender.System,
         MessagePurpose.SystemNotification
       );
@@ -260,7 +260,7 @@ const App: React.FC = () => {
       );
     } else {
          addMessage(
-            "严重警告：API_KEY 未配置。请确保设置 API_KEY 环境变量，以便应用程序正常运行。",
+            "Critical Warning: API_KEY is not configured. Please ensure the API_KEY environment variable is set for the application to function properly.",
             MessageSender.System,
             MessagePurpose.SystemNotification
       );
@@ -304,7 +304,7 @@ const App: React.FC = () => {
       while (currentTurn < maxTurns && !discussionComplete && !cancelRequestRef.current) {
         // Cognito's turn
         const cognitoPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER}
-${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${currentTurn === 0 ? `\nUser question: ${userInput}` : ''}
 ${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
 ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
 
@@ -339,7 +339,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
         if (discussionMode === DiscussionMode.AiDriven) {
           if (cognitoParsedResponse.discussionShouldEnd) {
             discussionComplete = true;
-            addMessage(`双方AI (${MessageSender.Cognito} 和 ${MessageSender.Muse}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
+            addMessage(`Both AIs (${MessageSender.Cognito} and ${MessageSender.Muse}) have agreed to end the discussion.`, MessageSender.System, MessagePurpose.SystemNotification);
           }
         }
 
@@ -351,7 +351,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
 
         // Muse's turn
         let musePrompt = `${MUSE_SYSTEM_PROMPT_HEADER}
-${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${currentTurn === 0 ? `\nUser question: ${userInput}` : ''}
 ${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
 ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
 
@@ -386,7 +386,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
         if (discussionMode === DiscussionMode.AiDriven) {
           if (museParsedResponse.discussionShouldEnd) {
             discussionComplete = true;
-            addMessage(`双方AI (${MessageSender.Muse} 和 ${MessageSender.Cognito}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
+            addMessage(`Both AIs (${MessageSender.Muse} and ${MessageSender.Cognito}) have agreed to end the discussion.`, MessageSender.System, MessagePurpose.SystemNotification);
           }
         }
 
@@ -398,7 +398,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
 
         // Cognito's reply
         let cognitoReplyPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER}
-${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${currentTurn === 0 ? `\nUser question: ${userInput}` : ''}
 ${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
 ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
 
@@ -433,7 +433,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
         if (discussionMode === DiscussionMode.AiDriven) {
           if (cognitoReplyParsedResponse.discussionShouldEnd) {
             discussionComplete = true;
-            addMessage(`双方AI (${MessageSender.Muse} 和 ${MessageSender.Cognito}) 已同意结束讨论。`, MessageSender.System, MessagePurpose.SystemNotification);
+            addMessage(`Both AIs (${MessageSender.Muse} and ${MessageSender.Cognito}) have agreed to end the discussion.`, MessageSender.System, MessagePurpose.SystemNotification);
           }
         }
 
@@ -445,7 +445,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
 
         // Final answer
         let finalPrompt = `${COGNITO_SYSTEM_PROMPT_HEADER}
-${currentTurn === 0 ? `\n用户问题: ${userInput}` : ''}
+${currentTurn === 0 ? `\nUser question: ${userInput}` : ''}
 ${NOTEPAD_INSTRUCTION_PROMPT_PART.replace('{notepadContent}', notepadContent)}
 ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_PROMPT_PART : ''}`;
 
@@ -478,7 +478,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
         addMessage(finalSpokenText, MessageSender.Cognito, MessagePurpose.FinalResponse, finalResponse.durationMs);
 
         if (discussionMode === DiscussionMode.AiDriven && currentTurn === maxTurns - 1) {
-          addMessage(`已达到AI驱动模式下的最大讨论轮次。 ${MessageSender.Cognito} 将准备最终答复。`, MessageSender.System, MessagePurpose.SystemNotification);
+          addMessage(`Maximum discussion turns reached in AI-driven mode. ${MessageSender.Cognito} will prepare the final response.`, MessageSender.System, MessagePurpose.SystemNotification);
         }
 
         currentTurn++;
@@ -486,7 +486,7 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
     } catch (error) {
       console.error('Error in chat:', error);
       addMessage(
-        `错误: ${error instanceof Error ? error.message : '未知错误'}`,
+        `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         MessageSender.System,
         MessagePurpose.SystemNotification
       );
@@ -510,14 +510,14 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
           <div className="flex items-center">
             <label htmlFor="modelSelector" className="text-sm text-gray-300 mr-1.5 flex items-center shrink-0">
               <Cpu size={18} className="mr-1 text-sky-400"/>
-              模型:
+              Model:
             </label>
             <select
               id="modelSelector"
               value={selectedModelApiName}
               onChange={(e) => setSelectedModelApiName(e.target.value)}
               className="bg-gray-700 border border-gray-600 text-white text-sm rounded-md p-1.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-              aria-label="选择AI模型"
+              aria-label="Select AI model"
             >
               {MODELS.map((model) => (
                 <option key={model.id} value={model.apiName}>
@@ -529,16 +529,16 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
           
           <Separator />
 
-          <div className="flex items-center space-x-1.5"> {/* Group for discussion mode toggle and fixed turns input */}
+          <div className="flex items-center space-x-1.5">
             <label
               htmlFor="discussionModeToggle"
               className="flex items-center text-sm text-gray-300 cursor-pointer hover:text-sky-400"
-              title={discussionMode === DiscussionMode.FixedTurns ? "切换到AI驱动模式" : "切换到固定轮次模式"}
+              title={discussionMode === DiscussionMode.FixedTurns ? "Switch to AI-driven mode" : "Switch to fixed turns mode"}
             >
               {discussionMode === DiscussionMode.FixedTurns 
                 ? <MessagesSquare size={18} className="mr-1 text-sky-400" /> 
                 : <Bot size={18} className="mr-1 text-sky-400" />}
-              <span className="mr-1 select-none shrink-0">模式:</span>
+              <span className="mr-1 select-none shrink-0">Mode:</span>
               <div className="relative">
                 <input
                   type="checkbox"
@@ -546,13 +546,13 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
                   className="sr-only peer"
                   checked={discussionMode === DiscussionMode.AiDriven}
                   onChange={() => setDiscussionMode(prev => prev === DiscussionMode.FixedTurns ? DiscussionMode.AiDriven : DiscussionMode.FixedTurns)}
-                  aria-label="切换对话模式"
+                  aria-label="Toggle discussion mode"
                 />
                 <div className={`block w-10 h-6 rounded-full transition-colors ${discussionMode === DiscussionMode.AiDriven ? 'bg-sky-500' : 'bg-gray-600'}`}></div>
                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${discussionMode === DiscussionMode.AiDriven ? 'translate-x-4' : ''}`}></div>
               </div>
               <span className="ml-1.5 select-none shrink-0 min-w-[4rem] text-left">
-                {discussionMode === DiscussionMode.FixedTurns ? '固定' : 'AI驱动'}
+                {discussionMode === DiscussionMode.FixedTurns ? 'Fixed' : 'AI-driven'}
               </span>
             </label>
             {discussionMode === DiscussionMode.FixedTurns && (
@@ -565,10 +565,10 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
                   min={MIN_MANUAL_FIXED_TURNS}
                   max={MAX_MANUAL_FIXED_TURNS}
                   className="w-14 bg-gray-700 border border-gray-600 text-white text-sm rounded-md p-1 text-center focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none"
-                  aria-label="设置固定轮次数量"
+                  aria-label="Set number of fixed turns"
                   disabled={isLoading}
                 />
-                <span className="ml-1 select-none">轮</span>
+                <span className="ml-1 select-none">turns</span>
               </div>
             )}
           </div>
@@ -580,12 +580,12 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
             className={`flex items-center text-sm text-gray-300 transition-opacity ${!modelSupportsThinkingBudget ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:text-sky-400'}`}
             title={
               modelSupportsThinkingBudget
-                ? (isThinkingBudgetEnabled ? "切换为快速模式 (禁用AI思考预算)" : "切换为优质模式 (启用AI思考预算)")
-                : "此模型不支持思考预算设置"
+                ? (isThinkingBudgetEnabled ? "Switch to fast mode (disable AI thinking budget)" : "Switch to quality mode (enable AI thinking budget)")
+                : "This model does not support thinking budget settings"
             }
           >
             <SlidersHorizontal size={18} className={`mr-1.5 ${modelSupportsThinkingBudget && isThinkingBudgetEnabled ? 'text-sky-400' : 'text-gray-500'}`} />
-            <span className="mr-2 select-none shrink-0">预算:</span>
+            <span className="mr-2 select-none shrink-0">Budget:</span>
             <div className="relative">
               <input
                 type="checkbox"
@@ -598,15 +598,15 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
                   }
                 }}
                 disabled={!modelSupportsThinkingBudget}
-                aria-label="切换AI思考预算"
+                aria-label="Toggle AI thinking budget"
               />
               <div className={`block w-10 h-6 rounded-full transition-colors ${modelSupportsThinkingBudget ? (isThinkingBudgetEnabled ? 'bg-sky-500 peer-checked:bg-sky-500' : 'bg-gray-600') : 'bg-gray-700'}`}></div>
               <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${modelSupportsThinkingBudget && isThinkingBudgetEnabled ? 'peer-checked:translate-x-4' : ''} ${!modelSupportsThinkingBudget ? 'bg-gray-400' : ''}`}></div>
             </div>
-            <span className="ml-2 w-20 text-left select-none shrink-0"> {/* Adjusted width for "优质/快速" */}
+            <span className="ml-2 w-20 text-left select-none shrink-0">
               {modelSupportsThinkingBudget
-                ? (isThinkingBudgetEnabled ? '优质' : '快速')
-                : '(不支持)'}
+                ? (isThinkingBudgetEnabled ? 'Quality' : 'Fast')
+                : '(N/A)'}
             </span>
           </label>
 
@@ -615,8 +615,8 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
           <button
             onClick={handleClearChat}
             className="p-2 text-gray-400 hover:text-sky-400 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-md shrink-0"
-            aria-label="清空会话"
-            title="清空会话"
+            aria-label="Clear chat"
+            title="Clear chat"
           >
             <RefreshCcw size={22} />
           </button>
@@ -644,15 +644,15 @@ ${discussionMode === DiscussionMode.AiDriven ? AI_DRIVEN_DISCUSSION_INSTRUCTION_
 
       { (isLoading || (currentTotalProcessingTimeMs > 0 && !isLoading) || (isLoading && currentTotalProcessingTimeMs === 0)) && (
          <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 bg-gray-900 bg-opacity-80 text-white p-2 rounded-md shadow-lg text-xs z-50">
-            总耗时: {(currentTotalProcessingTimeMs / 1000).toFixed(2)}s
+            Total time: {(currentTotalProcessingTimeMs / 1000).toFixed(2)}s
         </div>
       )}
        {isApiKeyMissing &&
-        !messages.some(msg => msg.text.includes("API_KEY 未配置") || msg.text.includes("API密钥无效")) &&
-        !messages.some(msg => msg.text.includes("严重警告：API_KEY 未配置")) &&
+        !messages.some(msg => msg.text.includes("API_KEY is not configured") || msg.text.includes("Invalid API key")) &&
+        !messages.some(msg => msg.text.includes("Critical Warning: API_KEY is not configured")) &&
         (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 p-3 bg-red-700 text-white rounded-lg shadow-lg flex items-center text-sm z-50">
-            <AlertTriangle size={20} className="mr-2" /> API密钥未配置或无效。请检查控制台获取更多信息。
+            <AlertTriangle size={20} className="mr-2" /> API key not configured or invalid. Check console for more information.
         </div>
       )}
     </div>

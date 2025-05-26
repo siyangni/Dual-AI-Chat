@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Paperclip, XCircle } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
@@ -141,17 +140,17 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isApiKe
           ref={textareaRef}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown} // Added keydown handler
+          onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          placeholder={isApiKeyMissing ? "API密钥未配置，聊天功能已禁用。" : (isDraggingOver ? "将图片拖放到此处" : "输入您的消息 (Ctrl+Enter 发送) 或粘贴/拖放图片...")}
+          placeholder={isApiKeyMissing ? "API key not configured, chat is disabled." : (isDraggingOver ? "Drop image here" : "Enter your message (Ctrl+Enter to send) or paste/drop images...")}
           className={`flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-gray-400 disabled:opacity-50 resize-none min-h-[48px] max-h-[150px] ${isDraggingOver ? 'ring-2 ring-sky-500 border-sky-500' : ''}`}
-          rows={1} // Start with 1 row, auto-expands
+          rows={1}
           disabled={isDisabled}
-          aria-label="聊天输入框"
-          onInput={(e) => { // Auto-resize textarea
+          aria-label="Chat input"
+          onInput={(e) => {
             const target = e.target as HTMLTextAreaElement;
             target.style.height = 'auto';
             target.style.height = `${target.scrollHeight}px`;
@@ -163,15 +162,15 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isApiKe
           onChange={handleFileSelected}
           accept={ACCEPTED_IMAGE_TYPES.join(',')}
           className="hidden"
-          aria-label="选择图片文件"
+          aria-label="Select image file"
         />
         <button
           type="button"
           onClick={handleFileButtonClick}
           className="p-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-white transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed self-end h-[48px]"
           disabled={isDisabled}
-          aria-label="添加图片附件"
-          title="添加图片"
+          aria-label="Add image attachment"
+          title="Add image"
         >
           <Paperclip size={24} />
         </button>
@@ -179,7 +178,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isApiKe
           type="submit"
           className="p-3 bg-sky-600 hover:bg-sky-700 rounded-lg text-white transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed self-end h-[48px]"
           disabled={isDisabled || (!inputValue.trim() && !selectedImage)}
-          aria-label={isLoading ? "发送中" : "发送消息"}
+          aria-label={isLoading ? "Sending" : "Send message"}
         >
           {isLoading ? <LoadingSpinner size="w-6 h-6" color="text-white" /> : <Send size={24} />}
         </button>

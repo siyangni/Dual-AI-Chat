@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
 import { THINKING_BUDGET_DISABLED } from '../constants';
 
@@ -61,14 +60,14 @@ export const generateResponse = async (
     const durationMs = performance.now() - startTime;
     return { text: response.text, durationMs };
   } catch (error) {
-    console.error("调用Gemini API时出错:", error);
+    console.error("Error calling Gemini API:", error);
     const durationMs = performance.now() - startTime;
     if (error instanceof Error) {
       if (error.message.includes('API key not valid')) {
-         return { text: "API密钥无效。请检查您的API密钥配置。", durationMs, error: "API key not valid" };
+         return { text: "Invalid API key. Please check your API key configuration.", durationMs, error: "API key not valid" };
       }
-      return { text: `与AI通信时出错: ${error.message}`, durationMs, error: error.message };
+      return { text: `Error communicating with AI: ${error.message}`, durationMs, error: error.message };
     }
-    return { text: "与AI通信时发生未知错误。", durationMs, error: "Unknown AI error" };
+    return { text: "An unknown error occurred while communicating with AI.", durationMs, error: "Unknown AI error" };
   }
 };

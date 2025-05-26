@@ -71,14 +71,14 @@ export const MIN_MANUAL_FIXED_TURNS = 1;
 export const MAX_MANUAL_FIXED_TURNS = 5; // Max turns per model for discussion
 export const MAX_AI_DRIVEN_DISCUSSION_TURNS_PER_MODEL = 3; // Safeguard for AI-driven mode
 
-export const INITIAL_NOTEPAD_CONTENT = `这是一个共享记事本。
-Cognito 和 Muse 可以在这里合作记录想法、草稿或关键点。
+export const INITIAL_NOTEPAD_CONTENT = `This is a shared notepad.
+Cognito and Muse can collaborate here to record ideas, drafts, or key points.
 
-使用指南:
-- AI 模型可以通过在其回复中包含特定指令来更新此记事本。
-- 记事本的内容将包含在发送给 AI 的后续提示中。
+Usage Guide:
+- AI models can update this notepad by including specific instructions in their responses.
+- The notepad content will be included in subsequent prompts sent to the AI.
 
-初始状态：空白。`;
+Initial state: blank.`;
 
 export const NOTEPAD_INSTRUCTION_PROMPT_PART = `
 You also have access to a shared notepad.

@@ -44,22 +44,22 @@ const Notepad: React.FC<NotepadProps> = ({ content, lastUpdatedBy, isLoading }) 
       <header className="p-3 border-b border-gray-700 flex items-center justify-between bg-slate-900">
         <div className="flex items-center">
           <FileText size={20} className="mr-2 text-sky-400" />
-          <h2 className="text-lg font-semibold text-sky-400">记事本</h2>
+          <h2 className="text-lg font-semibold text-sky-400">Notepad</h2>
         </div>
         <div className="flex items-center space-x-2">
-          {isLoading && <span className="text-xs text-gray-400 italic">AI 思考中...</span>}
+          {isLoading && <span className="text-xs text-gray-400 italic">AI thinking...</span>}
           <button
             onClick={handleCopyNotepad}
             className="p-1.5 text-gray-400 hover:text-sky-400 transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-sky-500 rounded-md"
-            title={isCopied ? "已复制!" : "复制记事本内容"}
-            aria-label={isCopied ? "已复制记事本内容到剪贴板" : "复制记事本内容"}
+            title={isCopied ? "Copied!" : "Copy notepad content"}
+            aria-label={isCopied ? "Notepad content copied to clipboard" : "Copy notepad content"}
           >
             {isCopied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
           </button>
           <button
             onClick={() => setIsPreviewMode(!isPreviewMode)}
             className="p-1.5 text-gray-400 hover:text-sky-400 transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-sky-500 rounded-md"
-            title={isPreviewMode ? "查看原始内容" : "预览 Markdown"}
+            title={isPreviewMode ? "View raw content" : "Preview Markdown"}
             aria-label={isPreviewMode ? "Switch to raw text view" : "Switch to Markdown preview"}
           >
             {isPreviewMode ? <Code size={18} /> : <Eye size={18} />}

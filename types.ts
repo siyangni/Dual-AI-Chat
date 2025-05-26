@@ -1,9 +1,8 @@
-
 export enum MessageSender {
-  User = '用户',
+  User = 'User',
   Cognito = 'Cognito', // Logical AI
   Muse = 'Muse',     // Creative AI
-  System = '系统',
+  System = 'System',
 }
 
 export enum MessagePurpose {

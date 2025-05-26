@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const GROK_API_BASE_URL = 'https://api.grok.x.ai/v1';
+const GROK_API_BASE_URL = 'https://api.grok.x.ai/v1beta';
 
 export const generateResponse = async (
   prompt: string,
@@ -30,18 +30,17 @@ export const generateResponse = async (
     });
 
     const response = await axios.post(
-      `${GROK_API_BASE_URL}/chat/completions`,
+      `${GROK_API_BASE_URL}/models/${modelName}/generateContent`,
       {
-        model: modelName || 'grok-1',
         messages,
         temperature: shouldApplyThinkingBudgetZero ? 0 : 0.7,
-        max_tokens: 2048,
+        maxOutputTokens: 2048,
       },
       { headers }
     );
 
     return {
-      text: response.data.choices[0].message.content,
+      text: response.data.candidates[0].content.parts[0].text,
       usage: response.data.usage,
     };
   } catch (error) {

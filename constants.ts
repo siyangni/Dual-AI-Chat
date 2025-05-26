@@ -1,5 +1,3 @@
-import { ApiProvider } from './types';
-
 export const GEMINI_FLASH_MODEL_ID = 'gemini-2.5-flash-preview-05-20'; // Retained from original, user may have a reason for this specific older flash
 export const GEMINI_PRO_MODEL_ID = 'gemini-2.5-pro-preview-05-06'; // Retained from original, user may have a reason for this specific older pro
 
@@ -13,7 +11,6 @@ export interface AiModel {
   name: string; // User-friendly name for display
   apiName: string; // Actual model name for the API
   supportsThinkingBudget: boolean;
-  provider: ApiProvider; // Add provider field
 }
 
 export const MODELS: AiModel[] = [
@@ -22,56 +19,12 @@ export const MODELS: AiModel[] = [
     name: 'Gemini 2.5 Flash (05-20)',
     apiName: GEMINI_FLASH_MODEL_ID,
     supportsThinkingBudget: true,
-    provider: ApiProvider.Gemini,
   },
   {
     id: 'pro-05-06',
     name: 'Gemini 2.5 Pro (05-06)',
     apiName: GEMINI_PRO_MODEL_ID,
     supportsThinkingBudget: false,
-    provider: ApiProvider.Gemini,
-  },
-  {
-    id: 'grok-3',
-    name: 'Grok 3 Beta',
-    apiName: 'grok-3-beta',
-    supportsThinkingBudget: true,
-    provider: ApiProvider.Grok,
-  },
-  {
-    id: 'grok-3-fast',
-    name: 'Grok 3 Fast Beta',
-    apiName: 'grok-3-fast-beta',
-    supportsThinkingBudget: true,
-    provider: ApiProvider.Grok,
-  },
-  {
-    id: 'grok-3-mini',
-    name: 'Grok 3 Mini Beta',
-    apiName: 'grok-3-mini-beta',
-    supportsThinkingBudget: true,
-    provider: ApiProvider.Grok,
-  },
-  {
-    id: 'grok-3-mini-fast',
-    name: 'Grok 3 Mini Fast Beta',
-    apiName: 'grok-3-mini-fast-beta',
-    supportsThinkingBudget: true,
-    provider: ApiProvider.Grok,
-  },
-  {
-    id: 'gpt-4',
-    name: 'GPT-4',
-    apiName: 'gpt-4-turbo-preview',
-    supportsThinkingBudget: true,
-    provider: ApiProvider.OpenAICompatible,
-  },
-  {
-    id: 'gpt-3.5',
-    name: 'GPT-3.5 Turbo',
-    apiName: 'gpt-3.5-turbo',
-    supportsThinkingBudget: true,
-    provider: ApiProvider.OpenAICompatible,
   },
 ];
 

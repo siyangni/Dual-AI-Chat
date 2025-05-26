@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, MessageSender, MessagePurpose } from './types';
-import { generateResponse } from './services/aiService';
+import { generateResponse } from './services/geminiService';
 import ChatInput from './components/ChatInput';
 import MessageBubble from './components/MessageBubble';
 import Notepad from './components/Notepad';
